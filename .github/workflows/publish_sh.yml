@@ -1,0 +1,58 @@
+name: Publish to pub.dev
+
+# Menjalankan workflow ini setiap kali ada push ke tag versi (misalnya v1.0.0) atau ketika release diterbitkan.
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*" # Tag versi harus mengikuti pola ini (contoh: v1.0.0)
+  release:
+    types: [published] # Workflow ini juga akan berjalan ketika ada release baru yang diterbitkan.
+
+jobs:
+  publish:
+    permissions:
+      id-token: write # Memberikan izin token identitas untuk akses.
+    runs-on: ubuntu-latest # Menentukan runner GitHub yang digunakan (Ubuntu terbaru).
+
+    steps:
+      # 📚 Langkah pertama: Checkout repository
+      - name: 📚 Checkout
+        uses: actions/checkout@v3 # Menggunakan action resmi untuk checkout kode dari repo.
+
+      # 🎯 Langkah kedua: Setup Flutter SDK
+      - name: Setup Flutter 🎯
+        uses: subosito/flutter-action@v2 # Action untuk mengatur Flutter SDK.
+        with:
+          channel: "stable" # Menggunakan channel Flutter "stable".
+          cache: true # Mengaktifkan cache untuk mempercepat proses build di masa mendatang.
+
+      # 📦 Langkah ketiga: Install dependencies
+      - name: Install dependencies 📦
+        run: flutter pub get # Mengambil semua dependensi yang tercantum di pubspec.yaml.
+
+      # 🕵️ Langkah keempat: Analisis kode dengan Flutter Analyze
+      - name: 🕵️ Analyze
+        run: flutter analyze . # Menganalisis kode untuk mendeteksi potensi masalah.
+
+      # ✅ Langkah kelima: Validasi pubspec.yaml
+      - name: ✅ Validate pubspec.yaml
+        run: dart pub publish --dry-run # Menjalankan simulasi publikasi untuk memvalidasi pubspec.yaml dan dependensi.
+
+      # 🤫 Langkah keenam: Setup credentials menggunakan credential.sh
+      - name: 🤫 Setup credentials
+        env:
+          PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIALS_JSON }} # Mengambil kredensial dari GitHub Secrets.
+        run: |
+          chmod +x ./scripts/credentials.sh  # Pastikan skrip dapat dieksekusi
+          ./scripts/credentials.sh  # Menjalankan skrip untuk membuat credentials.json
+        # run: |
+        #   # Membuat file kredensial di lokasi yang sesuai
+        #   if [[ ! -e ~/.pub-cache/credentials.json ]]; then
+        #       mkdir -p ~/.pub-cache
+        #       touch ~/.pub-cache/credentials.json
+        #   fi
+        #   echo $PUB_CREDENTIALS > ~/.pub-cache/credentials.json
+
+      # 🚀 Langkah ketujuh: Publish to pub.dev
+      - name: Publish to pub.dev 🚀
+        run: flutter pub publish # Perintah untuk mempublikasikan paket ke pub.dev dengan flag -f untuk skip konfirmasi.
